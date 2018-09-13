@@ -484,20 +484,24 @@
     {
       boarderWalls.create(15, 110, 'verticalwall'); // top left corner
       boarderWalls.create(110, 15, 'horizontalwall');//topleft corner
-      boarderWalls.create(210, 15, 'horizontalwall');//topleft corner
+      boarderWalls.create(230, 15, 'horizontalwall');//topleft corner
         boarderWalls.create(680, 15, 'horizontalwall');//top right corner
         boarderWalls.create(770, 110, 'verticalwall');// top right corner
-        boarderWalls.create(580, 15, 'horizontalwall');//topright corner
+        boarderWalls.create(560, 15, 'horizontalwall');//topright corner
       boarderWalls.create(680, 525, 'horizontalwall');//bottom right corner
-        boarderWalls.create(580, 525, 'horizontalwall');//bottom right corner
+        boarderWalls.create(560, 525, 'horizontalwall');//bottom right corner
         boarderWalls.create(770, 425, 'verticalwall');// bottom right corner
         boarderWalls.create(110, 525, 'horizontalwall');//bottom left corner
-      boarderWalls.create(210, 525, 'horizontalwall');//bottomleft corner
+      boarderWalls.create(230, 525, 'horizontalwall');//bottomleft corner
         boarderWalls.create(15, 425, 'verticalwall');// bottom left corner
     }
     function createNextRoomColliders()
     {
       nextRoomColliders.create(20,265,'verticalCollider');
+      nextRoomColliders.create(770,265,'verticalCollider');
+      nextRoomColliders.create(395,20, 'horizontalCollider');
+      nextRoomColliders.create(395,525,'horizontalCollider');
+      nextRoomColliders.toggleVisible();
     }
     function toggleLevelOff(level)
     {
@@ -518,7 +522,8 @@
     }
     function loadNextRoom(collider)
     {
-      player.x = collider.x + 20;
+      collider.setVisible(true);
+      player.x = collider.x + 670;
       toggleLevelOn(nextRoom);
       toggleLevelOff(currentRoom);
     }
