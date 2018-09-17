@@ -57,6 +57,14 @@
     var detectionOffset;
     var currentRoom;
     var nextRoom;
+    var firstRoom;
+    var lives;
+    var otto;
+    var ottoTimer;
+    var time;
+    var entryX;
+    var entryY;
+    var doors;
 
     var game = new Phaser.Game(config);
 
@@ -69,6 +77,7 @@
         this.load.image('verticalCollider', 'assets/verticalCollider.png');
         this.load.image('star', 'assets/star.png');
         this.load.image('laser', 'assets/bomb.png');
+        this.load.image('otto', 'assets/placeholder_otto.png');
         this.load.spritesheet('duderight', 'assets/placeholder_runcycle-Sheet.png', { frameWidth: 32, frameHeight: 64 });
         this.load.spritesheet('dudeleft', 'assets/placeholder_runcycle-Sheetleft.png', { frameWidth: 32, frameHeight: 64 });
         this.load.spritesheet('idleright', 'assets/placeholder_basesprite.png', { frameWidth: 32, frameHeight: 64 });
@@ -87,15 +96,21 @@
         playerPrevX = 0;
         playerPrevY = 0;
         detectionOffset = 15;
+        firstRoom = true;
     }
 
     function create ()
     {
         this.add.image(400, 300, 'sky');
         nextRoomColliders = this.physics.add.staticGroup();
+        doors = this.physics.add.staticGroup();
         boarderWalls = this.physics.add.staticGroup();
         levelOneWalls = this.physics.add.staticGroup();
         levelTwoWalls = this.physics.add.staticGroup();
+        lives = this.add.group();
+        otto = this.physics.add.sprite(500, 450, 'otto');
+
+        resetOtto();
 
         enemies = this.physics.add.group();
         enemies.createMultiple({
@@ -118,6 +133,12 @@
     repeat: 15,
     setXY: { x: 0, y: 580}
           });
+
+          lives.createMultiple({
+      key: 'duderight',visible:true,active:true,
+      repeat: 2,
+      setXY: { x: 200, y: 565 , stepX: 40}
+            });
 
           var i = 0;
           enemyLasers = this.physics.add.group();
@@ -147,71 +168,87 @@
         this.physics.add.overlap(lasers, levelOneWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(enemyLasers, levelOneWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(enemyLasers, boarderWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(enemyLasers, nextRoomColliders, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(player, boarderWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(player, levelOneWalls, destroyOtherNoPoints, null, this);
-
+        this.physics.add.overlap(player, otto, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(enemies, otto, destroyOtherPoints, null, this);
+        this.physics.add.overlap(player,doors,destroyOtherNoPoints,null,this);
         this.physics.add.overlap(lasers, levelTwoWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(enemyLasers, levelTwoWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(player, levelTwoWalls, destroyOtherNoPoints, null, this);
 
-        scoreText = this.add.text(300, 550, 'score: 0', { fontSize: '32px', fill: '#000' });
+        entryX = player.x;
+        entryY = player.y;
+
+        scoreText = this.add.text(400, 550, 'score: 0', { fontSize: '32px', fill: '#000' });
     }
-    function enemyMovement()
+
+    function removeLife()
     {
-      enemies.children.iterate(function (enemy) {
+      var life = lives.getFirstAlive();
+      life.setActive(false);
+      life.setVisible(false);
+    }
+    function enemyMovement(enemy)
+    {
         var distanceX = Math.abs(enemy.x - player.x);
         var distanceY = Math.abs(enemy.y - player.y);
+
+        var speed = enemySpeed;
+
+        if(enemy == otto)
+        {
+          speed = enemySpeed*2;
+        }
 
         if((distanceX > distanceY - detectionOffset  && distanceX < distanceY + detectionOffset) || (distanceY > distanceX - detectionOffset  && distanceY < distanceX + detectionOffset))
           {
             if((player.y > enemy.y) && (player.x < enemy.x))
             {
-            enemy.y += enemySpeed;
-            enemy.x += -enemySpeed;
+            enemy.y += speed;
+            enemy.x += -speed;
             }
             else if ((player.y < enemy.y) && (player.x < enemy.x))
             {
-              enemy.y += -enemySpeed;
-              enemy.x += -enemySpeed;
+              enemy.y += -speed;
+              enemy.x += -speed;
             }
             else if((player.x > enemy.x)&& (player.y > enemy.y))
             {
-              enemy.y += enemySpeed;
-              enemy.x += enemySpeed;
+              enemy.y += speed;
+              enemy.x += speed;
             }
             else if((player.x > enemy.x)&&(player.y < enemy.y))
              {
-              enemy.x += enemySpeed;
-              enemy.y += -enemySpeed;
+              enemy.x += speed;
+              enemy.y += -speed;
             }
         }
         else{
-          if((distanceX < distanceY && distanceX != 0) || (distanceX > distanceY  && distanceY == 0))
+          if((distanceX < distanceY && distanceX != 0) || (distanceX > distanceY  && (distanceY <= 1 && distanceY>=0)))
           {
             if(player.x < enemy.x)
             {
-              enemy.x += -enemySpeed;
+              enemy.x += -speed;
             }
             else if(player.x > enemy.x) {
-              enemy.x += enemySpeed;
+              enemy.x += speed;
             }
           }
-          else if((distanceY < distanceX  && distanceY != 0) || (distanceY > distanceX  && distanceX == 0))
+          else if((distanceY < distanceX  && distanceY != 0) || (distanceY > distanceX  && (distanceX <= 1 && distanceX>=0)))
           {
             if(player.y > enemy.y)
             {
-            enemy.y += enemySpeed;
+            enemy.y += speed;
             }
             else if (player.y < enemy.y)
             {
-              enemy.y += -enemySpeed;
+              enemy.y += -speed;
             }
           }
         }
-
-      });
     }
-
     function enemyShoot()
     {
       enemies.children.iterate(function (enemy) {
@@ -288,13 +325,17 @@
     }
     function update (time, delta)
     {
+      controls(time);
       if(player.active)
       {
-        controls(time);
-        enemyMovement();
-        enemyShoot();
-      }
+        enemies.children.iterate(function (enemy) {enemyMovement(enemy)});
+        enemyMovement(otto);
 
+        if(!firstRoom)
+        {
+        enemyShoot();
+         }
+      }
         //Makes the player unable to move while shooting
         if(isShooting)
         {
@@ -308,25 +349,26 @@
           canShoot = true;
         }
 
-        //calls eneymovement AI
+        callOtto(time);
     }
     function controls(time)
     {
-      if (cursors.left.isDown)
+      this.time = time;
+      if (cursors.left.isDown&& player.active)
       {
           player.setVelocityX(-playerSpeed);
           player.anims.play('left', true);
           facingRight = false;
       }
 
-      if (cursors.right.isDown)
+      if (cursors.right.isDown&& player.active)
       {
           player.setVelocityX(playerSpeed);
           player.anims.play('right', true);
           facingRight = true;
       }
 
-      if (cursors.up.isDown)
+      if (cursors.up.isDown&& player.active)
       {
           player.setVelocityY(-playerSpeed);
 
@@ -341,7 +383,7 @@
           }
       }
 
-      if (cursors.down.isDown)
+      if (cursors.down.isDown&& player.active)
       {
           player.setVelocityY(playerSpeed);
 
@@ -357,7 +399,7 @@
       }
 
 
-      if (cursors.down.isUp && cursors.up.isUp && cursors.left.isUp && cursors.right.isUp)
+      if (cursors.down.isUp && cursors.up.isUp && cursors.left.isUp && cursors.right.isUp&& player.active)
       {
         if(facingRight)
         {
@@ -379,9 +421,18 @@
         player.setVelocityX(0);
       }
 
-      if (button.isDown && (cursors.down.isDown || cursors.up.isDown || cursors.left.isDown||cursors.right.isDown) && canShoot)
+      if (button.isDown && (cursors.down.isDown || cursors.up.isDown || cursors.left.isDown||cursors.right.isDown) && canShoot && player.active)
       {
         fireLaser(time,player);
+      }
+
+      if (button.isDown && !player.active && lives.countActive(true) != 0)
+      {
+        player.x = entryX;
+        player.y = entryY;
+        player.setActive(true);
+        player.setVisible(true);
+        player.enableBody();
       }
 
       if (button.isUp)
@@ -459,7 +510,20 @@
       {
           other.disableBody(true,true);
           other.setActive(false);
+
+          if(other == player)
+          {
+            removeLife();
+          }
+
       }
+    }
+    function destroyOtherPoints(object,other)
+    {
+          other.disableBody(true,true);
+          other.setActive(false);
+          score += 50;
+          scoreText.setText('Score: ' + score);
     }
     function destroyBothPoints(object1, object2)
     {
@@ -471,6 +535,12 @@
       object2.setActive(false);
       score += 50;
       scoreText.setText('Score: ' + score);
+
+      if(object1 == player || object2 == player)
+      {
+        removeLife();
+      }
+
       }
     }
     function destroyBothNoPoints(object1, object2)
@@ -479,6 +549,11 @@
       object2.disableBody(true,true);
       object1.setActive(false);
       object2.setActive(false);
+
+      if(object1 == player || object2 == player)
+      {
+        removeLife();
+      }
     }
     function createBoarder()
     {
@@ -486,21 +561,42 @@
       boarderWalls.create(110, 15, 'horizontalwall');//topleft corner
       boarderWalls.create(230, 15, 'horizontalwall');//topleft corner
         boarderWalls.create(680, 15, 'horizontalwall');//top right corner
-        boarderWalls.create(770, 110, 'verticalwall');// top right corner
+        boarderWalls.create(775, 110, 'verticalwall');// top right corner
         boarderWalls.create(560, 15, 'horizontalwall');//topright corner
       boarderWalls.create(680, 525, 'horizontalwall');//bottom right corner
         boarderWalls.create(560, 525, 'horizontalwall');//bottom right corner
-        boarderWalls.create(770, 425, 'verticalwall');// bottom right corner
+        boarderWalls.create(775, 425, 'verticalwall');// bottom right corner
         boarderWalls.create(110, 525, 'horizontalwall');//bottom left corner
       boarderWalls.create(230, 525, 'horizontalwall');//bottomleft corner
         boarderWalls.create(15, 425, 'verticalwall');// bottom left corner
     }
     function createNextRoomColliders()
     {
-      nextRoomColliders.create(20,265,'verticalCollider');
-      nextRoomColliders.create(770,265,'verticalCollider');
-      nextRoomColliders.create(395,20, 'horizontalCollider');
-      nextRoomColliders.create(395,525,'horizontalCollider');
+      nextRoomColliders.create(10,265,'verticalCollider'); //leftExit 0
+      nextRoomColliders.create(395,10, 'horizontalCollider');//topExit 1
+      nextRoomColliders.create(780,265,'verticalCollider');//rightExit 2
+      nextRoomColliders.create(395,530,'horizontalCollider');//bottomExit 3
+
+      doors.create(20,265,'verticalCollider'); //leftExit 0
+      doors.create(395,20, 'horizontalCollider');//topExit 1
+      doors.create(770,265,'verticalCollider');//rightExit 2
+      doors.create(395,520,'horizontalCollider');//bottomExit 3
+
+      var i =0;
+      nextRoomColliders.children.iterate(function (exit) {
+        exit.child = i;
+        i++;
+      });
+
+      i =0;
+      doors.children.iterate(function (exit) {
+        exit.child = i;
+        exit.setActive(false);
+        exit.disableBody();
+        exit.setVisible(false);
+        i++
+      });
+
       nextRoomColliders.toggleVisible();
     }
     function toggleLevelOff(level)
@@ -511,7 +607,6 @@
          levelWall.setVisible(false);
        });
     }
-
     function toggleLevelOn(level)
     {
       level.children.iterate(function (levelWall) {
@@ -520,12 +615,91 @@
          levelWall.setVisible(true);
        });
     }
-    function loadNextRoom(collider)
+    function loadNextRoom(player,collider)
     {
-      collider.setVisible(true);
-      player.x = collider.x + 670;
+      if(collider.child == 0)
+      {
+        player.x = 740;
+        closeDoor(2);
+      }
+      else if(collider.child == 1)
+      {
+        player.y = 480;
+        closeDoor(3);
+      }
+      else if(collider.child == 2)
+      {
+        player.x = 50;
+        closeDoor(0);
+      }
+      else if (collider.child == 3)
+        {
+          player.y = 70;
+          closeDoor(1);
+        }
+
+        entryX = player.x;
+        entryY = player.y;
+        firstRoom = false;
+        resetOtto();
+
+        if(enemies.countActive() == 0)
+        {
+        score += 100;
+        scoreText.setText('Score: ' + score);
+        }
       toggleLevelOn(nextRoom);
       toggleLevelOff(currentRoom);
+    }
+    function callOtto(time)
+    {
+      var delay = Phaser.Math.RND.between(7000,20000);
+      if(time >= ottoTimer + delay)
+      {
+        if(firstRoom)
+        {
+          otto.x = 40;
+          otto.y = 300;
+        }
+        else
+          {
+            otto.x = entryX;
+            otto.y = entryY;
+          }
+          ottoTimer = 50000000;
+        otto.enableBody();
+        otto.setVisible(true);
+        otto.setActive(true);
+      }
+    }
+    function closeDoor(direction)
+    {
+      doors.children.iterate(function (exit) {
+        if(exit.child == direction)
+        {
+          exit.setActive(true);
+          exit.setVisible(true);
+          exit.enableBody(true,true);
+        }
+        else {
+          exit.setActive(false);
+          exit.setVisible(false);
+          exit.disableBody();
+        }
+      });
+    }
+    function resetOtto()
+    {
+      otto.disableBody();
+      otto.setVisible(false);
+      otto.setActive(false);
+      if(firstRoom)
+      {
+        ottoTimer = 0;
+      }
+      else{
+      ottoTimer = this.time;
+      }
     }
     function createLevelOne()
     {
