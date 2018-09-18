@@ -51,13 +51,17 @@
     var shootingDelay;
     var canShoot;
     var facingRight;
-    var levelOneWalls;
-    var levelTwoWalls;
+    var levelOneVertWalls;
+    var levelOneHorzWalls;
+    var levelTwoVertWalls;
+    var levelTwoHorzWalls;
     var nextRoomColliders;
     var detectionOffset;
-    var currentRoom;
-    var nextRoom;
-    var firstRoom;
+    var currentRoomHorz;
+    var currentRoomVert;
+    var nextRoomVert;
+    var nextRoomHorz;
+    var enemyCantShoot;
     var lives;
     var otto;
     var ottoTimer;
@@ -65,6 +69,8 @@
     var entryX;
     var entryY;
     var doors;
+    var canTakeDamage;
+    var respawnTimer;
 
     var game = new Phaser.Game(config);
 
@@ -84,8 +90,8 @@
         this.load.spritesheet('idleleft', 'assets/placeholder_basespriteleft.png', { frameWidth: 32, frameHeight: 64 });
         this.load.spritesheet('enemyleft', 'assets/placeholder_enemy_runcycle-Sheetleft.png', { frameWidth: 32, frameHeight: 64 });
         this.load.spritesheet('enemyright', 'assets/placeholder_enemy_runcycle-Sheet.png', { frameWidth: 32, frameHeight: 64 });
-        laserSpeed = 300;
-        playerSpeed = 150;
+        laserSpeed = 250;
+        playerSpeed = 120;
         enemySpeed = 1;
         isShooting = false;
         canShoot = true;
@@ -96,6 +102,9 @@
         playerPrevX = 0;
         playerPrevY = 0;
         detectionOffset = 15;
+        enemyCantShoot = true;
+        respawnTimer = 5000000;
+        respawnDelay = 2000;
         firstRoom = true;
     }
 
@@ -105,8 +114,10 @@
         nextRoomColliders = this.physics.add.staticGroup();
         doors = this.physics.add.staticGroup();
         boarderWalls = this.physics.add.staticGroup();
-        levelOneWalls = this.physics.add.staticGroup();
-        levelTwoWalls = this.physics.add.staticGroup();
+        levelOneVertWalls = this.physics.add.staticGroup();
+        levelOneHorzWalls = this.physics.add.staticGroup();
+        levelTwoVertWalls = this.physics.add.staticGroup();
+        levelTwoHorzWalls = this.physics.add.staticGroup();
         lives = this.add.group();
         otto = this.physics.add.sprite(500, 450, 'otto');
 
@@ -118,14 +129,16 @@
     repeat: 4,
     setXY: { x: 200, y: 100,stepX: 70, stepY: 50}
         });
-
         createNextRoomColliders();
         createBoarder(); // creats the wall for the game boarder.
         createLevelOne();
         createLevelTwo();
-        toggleLevelOff(levelTwoWalls);
-        currentRoom = levelOneWalls;
-        nextRoom = levelTwoWalls;
+        toggleLevelOff(levelTwoVertWalls);
+        toggleLevelOff(levelTwoHorzWalls);
+        currentRoomHorz = levelOneHorzWalls;
+        currentRoomVert = levelOneVertWalls;
+        nextRoomVert = levelTwoVertWalls;
+        nextRoomHorz = levelTwoHorzWalls;
 
         lasers = this.physics.add.group();
         lasers.createMultiple({
@@ -165,18 +178,24 @@
         this.physics.add.overlap(enemyLasers,enemies , destroyOtherNoPoints, null, this); // lasers destroyed by enemy collision
         this.physics.add.overlap(enemies, player, destroyBothPoints, null, this);
         this.physics.add.overlap(lasers, boarderWalls, destroyOtherNoPoints, null, this);
-        this.physics.add.overlap(lasers, levelOneWalls, destroyOtherNoPoints, null, this);
-        this.physics.add.overlap(enemyLasers, levelOneWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(lasers, levelOneVertWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(lasers, levelOneHorzWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(enemyLasers, levelOneVertWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(enemyLasers, levelOneHorzWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(enemyLasers, boarderWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(enemyLasers, nextRoomColliders, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(player, boarderWalls, destroyOtherNoPoints, null, this);
-        this.physics.add.overlap(player, levelOneWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(player, levelOneVertWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(player, levelOneHorzWalls, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(player, otto, destroyOtherNoPoints, null, this);
         this.physics.add.overlap(enemies, otto, destroyOtherPoints, null, this);
         this.physics.add.overlap(player,doors,destroyOtherNoPoints,null,this);
-        this.physics.add.overlap(lasers, levelTwoWalls, destroyOtherNoPoints, null, this);
-        this.physics.add.overlap(enemyLasers, levelTwoWalls, destroyOtherNoPoints, null, this);
-        this.physics.add.overlap(player, levelTwoWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(lasers, levelTwoVertWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(enemyLasers, levelTwoVertWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(player, levelTwoVertWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(lasers, levelTwoHorzWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(enemyLasers, levelTwoHorzWalls, destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(player, levelTwoHorzWalls, destroyOtherNoPoints, null, this);
 
         entryX = player.x;
         entryY = player.y;
@@ -226,7 +245,7 @@
             }
         }
         else{
-          if((distanceX < distanceY && distanceX != 0) || (distanceX > distanceY  && (distanceY <= 1 && distanceY>=0)))
+          if((distanceX <= distanceY && distanceX != 0) || (distanceX > distanceY  && (distanceY <= .5 && distanceY>=0)))
           {
             if(player.x < enemy.x)
             {
@@ -236,7 +255,7 @@
               enemy.x += speed;
             }
           }
-          else if((distanceY < distanceX  && distanceY != 0) || (distanceY > distanceX  && (distanceX <= 1 && distanceX>=0)))
+          else if((distanceY <= distanceX  && distanceY != 0) || (distanceY > distanceX  && (distanceX <= .5 && distanceX>=0)))
           {
             if(player.y > enemy.y)
             {
@@ -331,7 +350,7 @@
         enemies.children.iterate(function (enemy) {enemyMovement(enemy)});
         enemyMovement(otto);
 
-        if(!firstRoom)
+        if(!enemyCantShoot)
         {
         enemyShoot();
          }
@@ -349,6 +368,13 @@
           canShoot = true;
         }
 
+        if(time >= respawnTimer + respawnDelay)
+        {
+          enemyCantShoot = false;
+        }
+        else {
+          enemyCantShoot = true;
+        }
         callOtto(time);
     }
     function controls(time)
@@ -430,6 +456,9 @@
       {
         player.x = entryX;
         player.y = entryY;
+        resetOtto();
+        respawnTimer = time;
+        resetEnemies();
         player.setActive(true);
         player.setVisible(true);
         player.enableBody();
@@ -634,12 +663,13 @@
       }
       else if (collider.child == 3)
         {
-          player.y = 70;
+          player.y = 80;
           closeDoor(1);
         }
 
         entryX = player.x;
         entryY = player.y;
+        enemyCantShoot = false;
         firstRoom = false;
         resetOtto();
 
@@ -648,15 +678,19 @@
         score += 100;
         scoreText.setText('Score: ' + score);
         }
-      toggleLevelOn(nextRoom);
-      toggleLevelOff(currentRoom);
+
+        resetEnemies();
+      toggleLevelOn(nextRoomVert);
+      toggleLevelOn(nextRoomHorz);
+      toggleLevelOff(currentRoomVert);
+      toggleLevelOff(currentRoomHorz);
     }
     function callOtto(time)
     {
       var delay = Phaser.Math.RND.between(7000,20000);
       if(time >= ottoTimer + delay)
       {
-        if(firstRoom)
+        if(enemyCantShoot)
         {
           otto.x = 40;
           otto.y = 300;
@@ -703,17 +737,28 @@
     }
     function createLevelOne()
     {
-      levelOneWalls.create(110, 200, 'horizontalwall');
-      levelOneWalls.create(250, 400, 'horizontalwall');
-      levelOneWalls.create(600, 300, 'verticalwall');
-      levelOneWalls.create(510, 210, 'horizontalwall');
+      levelOneHorzWalls.create(110, 200, 'horizontalwall');
+      levelOneHorzWalls.create(250, 400, 'horizontalwall');
+      levelOneVertWalls.create(600, 300, 'verticalwall');
+      levelOneHorzWalls.create(510, 210, 'horizontalwall');
     }
     function createLevelTwo()
     {
-      levelTwoWalls.create(400, 200, 'horizontalwall');
-      levelTwoWalls.create(200, 225, 'horizontalwall');
-      levelTwoWalls.create(100, 300, 'verticalwall');
-      levelTwoWalls.create(300, 200, 'horizontalwall');
+      levelTwoHorzWalls.create(500, 225, 'horizontalwall');
+      levelTwoHorzWalls.create(250, 225, 'horizontalwall');
+      levelTwoVertWalls.create(150, 300, 'verticalwall');
+      levelTwoHorzWalls.create(400, 225, 'horizontalwall');
+    }
+
+    function lineOfSight(enemy)
+    {
+      var sightLine = Phaser.Geom.Line(enemy.x,enemy.y,player.x,player.y);
+      var intersects = false;
+      currentRoomVert.children.iterate(function(wall){
+
+      });
+
+      return intersects;
     }
     function createAnimations(anims)
     {
@@ -755,6 +800,21 @@
           key: 'idleleft',
           frames: [ { key: 'idleleft', frame: 0 } ],
           frameRate: 20
+      });
+    }
+    function resetEnemies()
+    {
+      enemies.children.iterate(function (enemy) {
+        enemy.disableBody();
+        enemy.setVisible(false);
+        enemy.setActive(false);
+
+        enemy.x = Phaser.Math.RND.between(100,500);
+        enemy.y = Phaser.Math.RND.between(100,400);
+        enemy.enableBody();
+        enemy.setVisible(true);
+        enemy.setActive(true);
+        respawnTimer = this.time;
       });
     }
 </script>
