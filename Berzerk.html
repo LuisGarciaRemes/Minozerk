@@ -16,8 +16,8 @@
 
     var config = {
         type: Phaser.AUTO,
-        width: 800,
-        height: 600,update: update,
+        width: 1024,
+        height: 804,update: update,
         physics: {
             default: 'arcade',
             arcade: {
@@ -61,21 +61,26 @@
     var lives;
     var otto;
     var ottoTimer;
-    var time;
     var entryX;
     var entryY;
     var doors;
     var canTakeDamage;
     var respawnTimer;
     var unit;
+    var sightRange;
+    var time;
 
     var game = new Phaser.Game(config);
 
     function preload ()
     {
-        this.load.image('BG', 'assets/floorsprites.png');
-        this.load.image('horizontalwall', 'assets/horizontalwall.png');
-      this.load.image('verticalwall', 'assets/verticalwall.png');
+      this.load.image('BG', 'assets/floorsprites.png');
+      this.load.image('horizontalwall', 'assets/wall_horizontal.png');
+      this.load.image('verticalwall', 'assets/wall_vertical.png');
+      this.load.image('lowerleftwall', 'assets/wall_lower_left.png');
+      this.load.image('lowerrightwall', 'assets/wall_lower_right.png');
+      this.load.image('upperleftwall', 'assets/wall_upper_left.png');
+      this.load.image('upperrightwall', 'assets/wall_upper_right.png');
       this.load.image('horizontalCollider', 'assets/horizontalCollider.png');
       this.load.image('verticalCollider', 'assets/verticalCollider.png');
       this.load.spritesheet('bone', 'assets/skeleton_projectile_sheet_small.png', { frameWidth: 14, frameHeight: 14 });
@@ -105,14 +110,15 @@
         detectionOffset = 15;
         enemyCantShoot = true;
         respawnTimer = 5000000;
-        respawnDelay = 2000;
+        respawnDelay = 1500;
         firstRoom = true;
         unit = 32;
+        sightRange = 200;
     }
 
     function create ()
     {
-        this.add.image(400, 300, 'BG');
+        this.add.image(512, 351, 'BG');
         nextRoomColliders = this.physics.add.staticGroup();
         doors = this.physics.add.staticGroup();
         boarderWalls = this.physics.add.staticGroup();
@@ -121,7 +127,7 @@
         lives = this.add.group();
         otto = this.physics.add.sprite(500, 450, 'otto');
 
-        resetOtto();
+        resetOtto(time);
 
         enemies = this.physics.add.group();
         enemies.createMultiple({
@@ -141,14 +147,14 @@
         projectiles = this.physics.add.group();
         projectiles.createMultiple({
     key: 'player_projectile',visible:false,active:false,
-    repeat: 2,
+    repeat: 5,
     setXY: { x: 0, y: 580}
           });
 
           lives.createMultiple({
       key: 'duderight',visible:true,active:true,
       repeat: 2,
-      setXY: { x: 200, y: 565 , stepX: 40}
+      setXY: { x: 240, y: 740 , stepX: 40}
             });
 
           var i = 0;
@@ -186,6 +192,7 @@
         this.physics.add.overlap(enemyProjectiles, levelTwoWalls, destroyOtherNoPoints, null, this);
         this.physics.add.collider(player, boarderWalls);
         this.physics.add.collider(player, levelOneWalls);
+        this.physics.add.collider(player, levelTwoWalls);
         this.physics.add.collider(player, doors);
         this.physics.add.collider(otto, boarderWalls);
         this.physics.add.collider(otto, levelOneWalls);
@@ -198,7 +205,7 @@
         entryX = player.x;
         entryY = player.y;
 
-        scoreText = this.add.text(400, 550, 'score: 0', { fontSize: '32px', fill: '#000' });
+        scoreText = this.add.text(440, 720, 'score: 0', { fontSize: '32px', fill: '#999' });
     }
 
     function removeLife()
@@ -209,46 +216,35 @@
     }
     function enemyMovement(enemy)
     {
-        var distanceX = Math.abs(enemy.x - player.x);
-        var distanceY = Math.abs(enemy.y - player.y);
+        var distance = Phaser.Math.Distance.Between(enemy.x,enemy.y,player.x,player.y);
 
         var speed = enemySpeed;
-
+      if(distance <= sightRange || enemy == otto){
         if(enemy == otto)
         {
-          enemy.anims.play ('otto',true);
-         speed = enemySpeed+50;
+          if(player.x >= enemy.x)
+            {
+              enemy.anims.play ('otto',true);
+            }
+            else
+            {
+              enemy.anims.play ('ottoleft',true);
+            }  
+         speed = enemySpeed*2;
        }
        else{
-         enemy.anims.play ('enemyright',true);
+          if(player.x >= enemy.x)
+            {
+              enemy.anims.play ('enemyright',true);
+            }
+            else
+            {
+              enemy.anims.play ('enemyleft',true);
+            }        
        }
-
-        if((distanceX > distanceY - detectionOffset  && distanceX < distanceY + detectionOffset) || (distanceY > distanceX - detectionOffset  && distanceY < distanceX + detectionOffset))
-          {
-            if((player.y > enemy.y) && (player.x < enemy.x))
-            {
-            enemy.setVelocityY(speed);
-            enemy.setVelocityX(-speed);
-            }
-            else if ((player.y < enemy.y) && (player.x < enemy.x))
-            {
-              enemy.setVelocityY(-speed);
-              enemy.setVelocityX(-speed);
-            }
-            else if((player.x > enemy.x)&& (player.y > enemy.y))
-            {
-              enemy.setVelocityY(speed);
-              enemy.setVelocityX(speed);
-            }
-            else if((player.x > enemy.x)&&(player.y < enemy.y))
-             {
-              enemy.setVelocityX(speed);
-              enemy.setVelocityY(-speed);
-            }
-        }
-        else{
-          if((distanceX <= distanceY && distanceX != 0) || (distanceY ==0))
-          {
+     
+          switch(Phaser.Math.RND.between(0,1)) {
+    case 0:
             if(player.x < enemy.x)
             {
               enemy.setVelocityX(-speed);
@@ -258,9 +254,8 @@
               enemy.setVelocityX(speed);
               enemy.setVelocityY(0);
             }
-          }
-          else if((distanceY <= distanceX  && distanceY != 0) || (distanceX ==0))
-          {
+                  break;
+    case 1:
             if(player.y > enemy.y)
             {
             enemy.setVelocityY(speed);
@@ -271,7 +266,14 @@
               enemy.setVelocityY(-speed);
               enemy.setVelocityX(0);
             }
-          }
+                    break;
+
+              }
+        }
+        else{
+          //set idle state for enemies
+              enemy.setVelocityY(0);
+              enemy.setVelocityX(0);
         }
     }
     function enemyShoot()
@@ -279,7 +281,8 @@
       enemies.children.iterate(function (enemy) {
         var distanceX = Math.abs(enemy.x - player.x);
         var distanceY = Math.abs(enemy.y - player.y);
-
+        var distance = Phaser.Math.Distance.Between(enemy.x,enemy.y,player.x,player.y);
+        if(distance <= sightRange){
         if(!enemy.child.active && ((distanceX > distanceY - detectionOffset  && distanceX < distanceY + detectionOffset) || (distanceY > distanceX - detectionOffset  && distanceY < distanceX + detectionOffset)) && enemy.active){
           enemy.child.setActive(true);
           enemy.child.setVisible(true);
@@ -339,10 +342,11 @@
           }
         }
         enemy.child.anims.play('bone',true);
-      });
+      }});
     }
     function update (time, delta)
     {
+      this.time = time;
       controls(time);
       if(player.active)
       {
@@ -353,6 +357,14 @@
         {
         enemyShoot();
          }
+      }
+      else{
+        enemies.children.iterate(function (enemy) {
+        enemy.setVelocityY(0);
+        enemy.setVelocityX(0);
+        });
+        otto.setVelocityY(0);
+        otto.setVelocityX(0);
       }
         //Makes the player unable to move while shooting
         if(isShooting)
@@ -371,14 +383,11 @@
         {
           enemyCantShoot = false;
         }
-        else {
-          enemyCantShoot = true;
-        }
+
         callOtto(time);
     }
     function controls(time)
     {
-      this.time = time;
       if (cursors.left.isDown&& player.active)
       {
           player.setVelocityX(-playerSpeed);
@@ -461,9 +470,9 @@
       {
         player.x = entryX;
         player.y = entryY;
-        resetOtto();
+        resetOtto(time);
         respawnTimer = time;
-        resetEnemies();
+        resetEnemies(time);
         player.setActive(true);
         player.setVisible(true);
         player.enableBody();
@@ -591,30 +600,66 @@
     }
     function createBoarder()
     {
-      boarderWalls.create(15, 110, 'verticalwall'); // top left corner
-      boarderWalls.create(110, 15, 'horizontalwall');//topleft corner
-      boarderWalls.create(230, 15, 'horizontalwall');//topleft corner
-        boarderWalls.create(680, 15, 'horizontalwall');//top right corner
-        boarderWalls.create(775, 110, 'verticalwall');// top right corner
-        boarderWalls.create(560, 15, 'horizontalwall');//topright corner
-      boarderWalls.create(680, 525, 'horizontalwall');//bottom right corner
-        boarderWalls.create(560, 525, 'horizontalwall');//bottom right corner
-        boarderWalls.create(775, 425, 'verticalwall');// bottom right corner
-        boarderWalls.create(110, 525, 'horizontalwall');//bottom left corner
-      boarderWalls.create(230, 525, 'horizontalwall');//bottomleft corner
-        boarderWalls.create(15, 425, 'verticalwall');// bottom left corner
+      boarderWalls.create((unit/2)+unit*0, (unit/2)+unit*0, 'upperleftwall'); // top left corner
+      boarderWalls.create((unit/2)+unit*31, (unit/2)+unit*0, 'upperrightwall');
+      boarderWalls.create((unit/2)+unit*31, (unit/2)+unit*21, 'lowerrightwall');
+      boarderWalls.create((unit/2)+unit*0, (unit/2)+unit*21, 'lowerleftwall');
+      
+      //top left vert segment
+      for(var i = 1; i <= 8; i++)
+      {
+        boarderWalls.create((unit/2)+unit*0, (unit/2)+unit*i, 'verticalwall');
+      }
+      //bottom left vert segment
+      for(var i = 13; i <= 20; i++)
+      {
+        boarderWalls.create((unit/2)+unit*0, (unit/2)+unit*i, 'verticalwall');
+      }
+      //top right vert segment
+      for(var i = 1; i <= 8; i++)
+      {
+        boarderWalls.create((unit/2)+unit*31, (unit/2)+unit*i, 'verticalwall');
+      }
+      //bottom right vert segment
+      for(var i = 13; i <= 20; i++)
+      {
+        boarderWalls.create((unit/2)+unit*31, (unit/2)+unit*i, 'verticalwall');
+      }
+
+      for(var i = 1; i <= 13; i++)
+      {
+        boarderWalls.create((unit/2)+unit*i, (unit/2)+unit*21, 'horizontalwall');
+      }
+
+      for(var i = 18; i <= 30; i++)
+      {
+        boarderWalls.create((unit/2)+unit*i, (unit/2)+unit*21, 'horizontalwall');
+      }
+
+      for(var i = 1; i <= 13; i++)
+      {
+        boarderWalls.create((unit/2)+unit*i, (unit/2)+unit*0, 'horizontalwall');
+      }
+
+      for(var i = 18; i <= 30; i++)
+      {
+        boarderWalls.create((unit/2)+unit*i, (unit/2)+unit*0, 'horizontalwall');
+      }
+      
+
+
     }
     function createNextRoomColliders()
     {
-      nextRoomColliders.create(10,265,'verticalCollider'); //leftExit 0
-      nextRoomColliders.create(395,10, 'horizontalCollider');//topExit 1
-      nextRoomColliders.create(780,265,'verticalCollider');//rightExit 2
-      nextRoomColliders.create(395,530,'horizontalCollider');//bottomExit 3
+      nextRoomColliders.create(10,350,'verticalCollider'); //leftExit 0
+      nextRoomColliders.create(510,10, 'horizontalCollider');//topExit 1
+      nextRoomColliders.create(1010,350,'verticalCollider');//rightExit 2
+      nextRoomColliders.create(510,695,'horizontalCollider');//bottomExit 3
 
-      doors.create(20,265,'verticalCollider'); //leftExit 0
-      doors.create(395,20, 'horizontalCollider');//topExit 1
-      doors.create(770,265,'verticalCollider');//rightExit 2
-      doors.create(395,520,'horizontalCollider');//bottomExit 3
+      doors.create(20,350,'verticalCollider'); //leftExit 0
+      doors.create(510,20, 'horizontalCollider');//topExit 1
+      doors.create(1000,350,'verticalCollider');//rightExit 2
+      doors.create(510,685,'horizontalCollider');//bottomExit 3
 
       var i =0;
       nextRoomColliders.children.iterate(function (exit) {
@@ -674,9 +719,8 @@
 
         entryX = player.x;
         entryY = player.y;
-        enemyCantShoot = false;
         firstRoom = false;
-        resetOtto();
+        resetOtto(time);
 
         if(enemies.countActive() == 0)
         {
@@ -684,16 +728,16 @@
         scoreText.setText('Score: ' + score);
         }
 
-        resetEnemies();
+        resetEnemies(time);
       toggleLevelOn(nextRoom);
       toggleLevelOff(currentRoom);
     }
     function callOtto(time)
     {
-      var delay = Phaser.Math.RND.between(7000,20000);
+      var delay = Phaser.Math.RND.between(7,14)*1000;
       if(time >= ottoTimer + delay)
       {
-        if(enemyCantShoot)
+        if(firstRoom)
         {
           otto.x = 40;
           otto.y = 300;
@@ -725,7 +769,7 @@
         }
       });
     }
-    function resetOtto()
+    function resetOtto(time)
     {
       otto.disableBody();
       otto.setVisible(false);
@@ -737,15 +781,105 @@
         ottoTimer = 0;
       }
       else{
-      ottoTimer = this.time;
+      ottoTimer = time;
       }
     }
     function createLevelOne()
     {
-      levelOneWalls.create(110, 200, 'horizontalwall');
-      levelOneWalls.create(250, 400, 'horizontalwall');
-      levelOneWalls.create(600, 300, 'verticalwall');
-      levelOneWalls.create(510, 210, 'horizontalwall');
+      for(var i = 1; i <= 10; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*13, 'horizontalwall');
+      }
+      for(var i = 12; i <= 19; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*9, 'horizontalwall');
+      }
+      for(var i = 5; i <= 13; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*5, 'horizontalwall');
+      }
+      for(var i = 5; i <= 7; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*9, 'horizontalwall');
+      }
+      for(var i = 1; i <= 6; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*17, 'horizontalwall');
+      }
+      for(var i = 10; i <= 22; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*17, 'horizontalwall');
+      }
+
+      for(var i = 19; i <= 21; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*5, 'horizontalwall');
+      }
+
+      for(var i = 24; i <= 26; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*9, 'horizontalwall');
+      }
+
+      for(var i = 28; i <= 30; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*i, (unit/2)+unit*13, 'horizontalwall');
+      }
+
+      for(var i = 6; i <= 8; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*4, (unit/2)+unit*i, 'verticalwall');
+      }
+
+        levelOneWalls.create((unit/2)+unit*10, (unit/2)+unit*4, 'verticalwall');
+
+      for(var i = 1; i <= 4; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*14, (unit/2)+unit*i, 'verticalwall');
+      }
+
+      for(var i = 1; i <= 4; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*18, (unit/2)+unit*i, 'verticalwall');
+      }
+
+    
+        levelOneWalls.create((unit/2)+unit*22, (unit/2)+unit*4, 'verticalwall');
+
+      for(var i = 10; i <= 12; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*11, (unit/2)+unit*i, 'verticalwall');
+      }
+      for(var i = 13; i <= 16; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*15, (unit/2)+unit*i, 'verticalwall');
+      }
+      for(var i = 13; i <= 16; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*19, (unit/2)+unit*i, 'verticalwall');
+      }
+      for(var i = 10; i <= 16; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*23, (unit/2)+unit*i, 'verticalwall');
+      }
+      for(var i = 10; i <= 12; i++)
+      {
+        levelOneWalls.create((unit/2)+unit*27, (unit/2)+unit*i, 'verticalwall');
+      }
+
+      levelOneWalls.create((unit/2)+unit*4, (unit/2)+unit*5, 'upperleftwall');
+      levelOneWalls.create((unit/2)+unit*11, (unit/2)+unit*9, 'upperleftwall');
+      levelOneWalls.create((unit/2)+unit*23, (unit/2)+unit*9, 'upperleftwall');
+      levelOneWalls.create((unit/2)+unit*4, (unit/2)+unit*9, 'lowerleftwall');
+      levelOneWalls.create((unit/2)+unit*18, (unit/2)+unit*5, 'lowerleftwall');
+      levelOneWalls.create((unit/2)+unit*27, (unit/2)+unit*13, 'lowerleftwall');
+      levelOneWalls.create((unit/2)+unit*14, (unit/2)+unit*5, 'lowerrightwall');
+      levelOneWalls.create((unit/2)+unit*22, (unit/2)+unit*5, 'lowerrightwall');
+      levelOneWalls.create((unit/2)+unit*11, (unit/2)+unit*13, 'lowerrightwall');
+      levelOneWalls.create((unit/2)+unit*23, (unit/2)+unit*17, 'lowerrightwall');
+      levelOneWalls.create((unit/2)+unit*27, (unit/2)+unit*9, 'upperrightwall');
+      levelOneWalls.create((unit/2)+unit*14, (unit/2)+unit*0, 'upperrightwall');
+
     }
     function createLevelTwo()
     {
@@ -836,7 +970,7 @@
          frameRate: 20
      });
     }
-    function resetEnemies()
+    function resetEnemies(time)
     {
       enemies.children.iterate(function (enemy) {
         enemy.disableBody();
@@ -850,8 +984,9 @@
         enemy.enableBody();
         enemy.setVisible(true);
         enemy.setActive(true);
-        respawnTimer = this.time;
       });
+      enemyCantShoot = true;
+      respawnTimer = time;
     }
 </script>
 
