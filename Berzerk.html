@@ -69,11 +69,15 @@
     var time;
     var levelOnePosList;
     var levelTwoPosList;
+    var canTakeDamage;
 
     var game = new Phaser.Game(config);
 
     function preload ()
     {
+      this.load.audio('theme', [
+        'assets/slowlycreeping.mp3'
+    ]);
       this.load.image('BG', 'assets/floorsprites.png');
       this.load.image('horizontalwall', 'assets/wall_horizontal.png');
       this.load.image('verticalwall', 'assets/wall_vertical.png');
@@ -103,11 +107,11 @@
 
         projectileSpeed = 250;
         playerSpeed = 120;
-        enemySpeed = 100;
+        enemySpeed = 110;
         isShooting = false;
         canShoot = true;
         shootingTimer = 0;
-        shootingDelay = 1000; // 1000 = 1 second
+        shootingDelay = 250; // 1000 = 1 second
         facingRight = true;
         score = 0;
         playerPrevX = 0;
@@ -115,11 +119,17 @@
         detectionOffset = 15;
         firstRoom = true;
         unit = 32;
-        sightRange = 200;
+        sightRange = 350;
+        canTakeDamage = true;
     }
 
     function create ()
     {
+      var music = this.sound.add('theme');
+
+          music.setLoop(true);
+          music.play();
+
         this.add.image(512, 351, 'BG');
         nextRoomColliders = this.physics.add.staticGroup();
         doors = this.physics.add.staticGroup();
@@ -149,7 +159,7 @@
         projectiles = this.physics.add.group();
         projectiles.createMultiple({
     key: 'player_projectile',visible:false,active:false,
-    repeat: 5,
+    repeat: 20,
     setXY: { x: 0, y: 580}
           });
 
@@ -163,7 +173,7 @@
           enemyProjectiles = this.physics.add.group();
           enemyProjectiles.createMultiple({
       key: 'bone',visible:false,active:false,
-      repeat: 15,
+      repeat: 12,
       setXY: { x: 0, y: 580}
             });
               enemies.children.iterate(function (enemy) {
@@ -197,8 +207,13 @@
         this.physics.add.collider(player, levelTwoWalls);
         this.physics.add.collider(player, doors);
         this.physics.add.collider(otto, boarderWalls);
-        this.physics.add.collider(otto, levelOneWalls);
-        this.physics.add.collider(otto, levelTwoWalls);
+
+        //switch the // for minotar destoyrswalls
+        //this.physics.add.collider(otto, levelOneWalls);
+        //this.physics.add.collider(otto, levelTwoWalls);
+        this.physics.add.overlap(levelOneWalls,otto,destroyOtherNoPoints, null, this);
+        this.physics.add.overlap(levelTwoWalls,otto,destroyOtherNoPoints, null, this);
+
         this.physics.add.collider(enemies, boarderWalls);
         this.physics.add.collider(enemies, enemies);
         this.physics.add.collider(enemies, levelOneWalls);
@@ -232,7 +247,7 @@
             {
               enemy.anims.play ('ottoleft',true);
             }
-         speed = enemySpeed*2;
+         speed = enemySpeed*3;
        }
        else{
           if(player.x >= enemy.x)
@@ -465,6 +480,8 @@
 
       if (button.isDown && !player.active && lives.countActive(true) != 0)
       {
+        toggleLevelOff(currentRoom);
+        toggleLevelOn(currentRoom);
         player.x = entryX;
         player.y = entryY;
         resetOtto(time);
@@ -546,6 +563,12 @@
     }
     function destroyOtherNoPoints(other, object)
     {
+      if(other == otto)
+      {
+        object.disableBody(true,true);
+        object.setActive(false);
+      }
+      else{
        if(object.child != other)
       {
           other.disableBody(true,true);
@@ -557,6 +580,7 @@
           }
 
       }
+    }
     }
     function destroyOtherPoints(object,other)
     {
@@ -752,7 +776,7 @@
     }
     function callOtto(time)
     {
-      var delay = Phaser.Math.RND.between(7,14)*1000;
+      var delay = Phaser.Math.RND.between(10,20)*1000;
       if(time >= ottoTimer + delay)
       {
         if(firstRoom)
