@@ -70,14 +70,29 @@
     var levelOnePosList;
     var levelTwoPosList;
     var canTakeDamage;
+    var growl;
+    var woosh;
+    var grunt;
 
     var game = new Phaser.Game(config);
 
     function preload ()
     {
-      this.load.audio('theme', [
-        'assets/slowlycreeping.mp3'
-    ]);
+      this.load.audio('theme',[
+      'assets/slowlycreeping.mp3'
+      ]);
+      this.load.audio('growl',[
+      'assets/growl.mp3'
+      ]);
+      this.load.audio('woosh',[
+      'assets/woosh.mp3'
+      ]);
+      this.load.audio('grunt',[
+      'assets/grunt.mp3'
+      ]);
+      this.load.audio('wallcrush',[
+      'assets/wallcrush.mp3'
+      ]);
       this.load.image('BG', 'assets/floorsprites.png');
       this.load.image('horizontalwall', 'assets/wall_horizontal.png');
       this.load.image('verticalwall', 'assets/wall_vertical.png');
@@ -126,6 +141,10 @@
     function create ()
     {
       var music = this.sound.add('theme');
+      growl = this.sound.add('growl');
+      woosh = this.sound.add('woosh');
+      grunt = this.sound.add('grunt');
+      wallcrush = this.sound.add('wallcrush');
 
           music.setLoop(true);
           music.play();
@@ -272,7 +291,7 @@
               enemy.setVelocityY(0);
             }
                   break;
-                  case 1:
+            case 1:
             if(player.y > enemy.y)
             {
             enemy.setVelocityY(speed);
@@ -283,7 +302,7 @@
               enemy.setVelocityY(-speed);
               enemy.setVelocityX(0);
             }
-                    break;
+                              break;
 
               }
         }
@@ -557,7 +576,7 @@
           projectile.setVelocityX(0);
           projectile.setVelocityY(projectileSpeed);
         }
-
+        woosh.play();
         projectile.setX(parent.x);
         projectile.setY(parent.y);
     }
@@ -567,6 +586,7 @@
       {
         object.disableBody(true,true);
         object.setActive(false);
+        wallcrush.play();
       }
       else{
        if(object.child != other)
@@ -602,6 +622,7 @@
 
       if(object1 == player || object2 == player)
       {
+        grunt.play();
         removeLife();
       }
 
@@ -616,6 +637,7 @@
 
       if(object1 == player || object2 == player)
       {
+        grunt.play();
         removeLife();
       }
     }
@@ -793,6 +815,7 @@
         otto.enableBody();
         otto.setVisible(true);
         otto.setActive(true);
+        growl.play();
       }
     }
     function closeDoor(direction)
